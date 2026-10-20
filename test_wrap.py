@@ -5,7 +5,7 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-from watermarker import draw_watermark, wrap_text, FONT_REG
+from watermarker import draw_watermark, wrap_text, FONT_REG, FONT_BOLD
 
 ok = True
 
@@ -18,7 +18,7 @@ def check(name, cond, detail=""):
 
 
 d = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-f = ImageFont.truetype(FONT_REG, 25)
+f = ImageFont.truetype(FONT_REG, 25) if FONT_REG else ImageFont.load_default()
 
 lines = wrap_text(d, "阳塘安居小区隆兴六里23号楼", f, 400, 10, 4)
 check("12字→2行", len(lines) == 2, str(lines))
@@ -56,7 +56,7 @@ print("短文本尺寸:", short.size, "长文本尺寸:", long_.size)
 # 对比图
 tw = 520
 tiles = []
-fcap = ImageFont.truetype(r"C:\Windows\Fonts\msyhbd.ttc", 20)
+fcap = ImageFont.truetype(FONT_BOLD, 20) if FONT_BOLD else ImageFont.load_default()
 for im, cap in [(short, "10字以内：单行"), (long_, "超过10字：自动换行")]:
     th = int(im.height * tw / im.width)
     small = im.resize((tw, th), Image.LANCZOS)

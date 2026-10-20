@@ -43,17 +43,18 @@ im2 = draw_watermark(photo(), datetime(2026, 10, 20, 15, 40),
 
 # 3) 验证内容区宽 = 16 个中文字（检查水印块宽度与字号关系）
 from PIL import ImageFont as IF
+from watermarker import FONT_BOLD, FONT_REG
 W = 1600
 base = W / 810.0
 s = base * 0.75
-f_info = IF.truetype(r"C:\Windows\Fonts\msyh.ttc", max(9, int(23 * s)))
+f_info = IF.truetype(FONT_REG, max(9, int(23 * s))) if FONT_REG else IF.load_default()
 cjk = ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength("国", font=f_info)
 expect = int(14 * s) + int(23 * s) * 2 + int(10 * s) + int(cjk * 16) + int(10 * s)
 print(f"   内容区宽 {cjk*16:.0f}px（16字），整条预期约 {expect}px，占图宽 {expect/W*100:.0f}%")
 
 # 对照图
 tw = 700
-tiles, cap_f = [], ImageFont.truetype(r"C:\Windows\Fonts\msyhbd.ttc", 20)
+tiles, cap_f = [], (ImageFont.truetype(FONT_BOLD, 20) if FONT_BOLD else ImageFont.load_default())
 for im, cap in [(im1, "默认标签 · 地点 19 字自动换行"),
                 (im2, "自定义标签 · 分散对齐")]:
     th = int(im.height * tw / im.width)

@@ -42,6 +42,26 @@ jobs:
         run: |
           python -c "import struct, sys; print('Python', sys.version); assert struct.calcsize('P') == 4, '不是 32 位解释器'"
 
+      - name: 安装中文字体
+        shell: pwsh
+        run: |
+          # windows-latest 为 Server 版，缺微软雅黑；水印排版依赖中文正文字体
+          $fonts = @(
+            @{ Name = "msyh.ttc";   Url = "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTC/NotoSansCJK-Regular.ttc" },
+            @{ Name = "msyhbd.ttc"; Url = "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTC/NotoSansCJK-Bold.ttc" }
+          )
+          $dest = "C:\Windows\Fonts"
+          foreach ($f in $fonts) {
+            $target = Join-Path $dest $f.Name
+            try {
+              Invoke-WebRequest -Uri $f.Url -OutFile $target -MaximumRedirection 5 -TimeoutSec 120
+              Write-Host "已安装 $($f.Name)"
+            } catch {
+              Write-Warning "字体 $($f.Name) 下载失败：$($_.Exception.Message)（将继续，draw_watermark 会退化为默认字体）"
+            }
+          }
+          Get-ChildItem $dest -Filter "msyh*" | Format-Table Name, Length
+
       - name: 运行回归测试
         shell: pwsh
         working-directory: .

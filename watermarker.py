@@ -26,11 +26,26 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-FONT_BOLD = r"C:\Windows\Fonts\msyhbd.ttc"
-FONT_REG = r"C:\Windows\Fonts\msyh.ttc"
-if not os.path.exists(FONT_BOLD):
-    FONT_BOLD = r"C:\Windows\Fonts\simhei.ttf"
-    FONT_REG = FONT_BOLD
+def _pick_font(*candidates):
+    """按顺序返回第一个存在的字体路径；都不存在时返回 None（调用方用 load_default 兜底）。"""
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+FONT_BOLD = _pick_font(
+    r"C:\Windows\Fonts\msyhbd.ttc",
+    r"C:\Windows\Fonts\msyh.ttc",
+    r"C:\Windows\Fonts\simhei.ttf",
+    r"C:\Windows\Fonts\Deng.ttf",
+)
+FONT_REG = _pick_font(
+    r"C:\Windows\Fonts\msyh.ttc",
+    r"C:\Windows\Fonts\msyhbd.ttc",
+    r"C:\Windows\Fonts\simhei.ttf",
+    r"C:\Windows\Fonts\Deng.ttf",
+)
 
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
@@ -264,10 +279,19 @@ def draw_watermark(img, dt, location, remark, position="左下",
     info_h = max(13, int(42 * s))         # 单行信息的高度 / 行距
     margin = max(5, int(12 * base))
 
-    f_title = ImageFont.truetype(FONT_BOLD, max(10, int(27 * s)))
-    f_time = ImageFont.truetype(FONT_BOLD, max(10, int(29 * s)))
-    f_label = ImageFont.truetype(FONT_BOLD, max(9, int(23 * s)))
-    f_info = ImageFont.truetype(FONT_REG, max(9, int(23 * s)))
+    def _font(path, size):
+        # 字体缺失时（如无中文字体的 CI / Windows Server 环境）退化为默认位图字体，保证不中断
+        if path:
+            try:
+                return ImageFont.truetype(path, size)
+            except OSError:
+                pass
+        return ImageFont.load_default()
+
+    f_title = _font(FONT_BOLD, max(10, int(27 * s)))
+    f_time = _font(FONT_BOLD, max(10, int(29 * s)))
+    f_label = _font(FONT_BOLD, max(9, int(23 * s)))
+    f_info = _font(FONT_REG, max(9, int(23 * s)))
 
     pad_l = int(14 * s)
     pad_r = int(10 * s)
