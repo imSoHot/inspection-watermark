@@ -131,13 +131,18 @@ jobs:
       - name: 生成安装包 zip
         shell: pwsh
         working-directory: pack_build
-        run: python make_zip.py
+        run: |
+          python make_zip.py
+          if ($LASTEXITCODE -ne 0) { throw "[生成zip] make_zip.py failed" }
+          # 附带一个 ASCII 文件名副本：action-gh-release 上传时中文名会被截断成 _.zip
+          Copy-Item "巡检照片加水印工具_安装包.zip" "inspection-watermark-win32.zip" -Force
+          Get-ChildItem *.zip | Select-Object Name, Length | Format-Table
 
       - name: 上传构建产物（手动触发时可用）
         uses: actions/upload-artifact@v4
         with:
           name: inspection-watermark-win32
-          path: pack_build/巡检照片加水印工具_安装包.zip
+          path: pack_build/inspection-watermark-win32.zip
           retention-days: 30
 
       - name: 发布 Release
@@ -150,7 +155,7 @@ jobs:
           body: |
             ### 使用说明
             - 系统要求：**32 位 / 64 位 Windows**（无需安装 Python）
-            - 下载下方 `巡检照片加水印工具_安装包.zip`，解压后双击 `巡检加水印.exe` 运行
+            - 下载下方 `inspection-watermark-win32.zip`，解压后双击 `巡检加水印.exe` 运行
             - 详细操作见包内 `使用说明.txt`
           files: |
-            pack_build/巡检照片加水印工具_安装包.zip
+            pack_build/inspection-watermark-win32.zip
