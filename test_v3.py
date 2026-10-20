@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 新样式验证：标签分散对齐 / 内容区 16 字宽 / 左下角固定
+import os
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
@@ -66,6 +67,7 @@ for im, cap in [(im1, "默认标签 · 地点 19 字自动换行"),
 sheet = Image.new("RGB", (tw * 2 + 36, tiles[0].size[1] + 24), (244, 246, 250))
 sheet.paste(tiles[0], (12, 12))
 sheet.paste(tiles[1], (tw + 24, 12))
+os.makedirs("pack_build/style_preview", exist_ok=True)
 sheet.save("pack_build/style_preview/新样式预览.jpg", quality=93)
 print("效果图: pack_build/style_preview/新样式预览.jpg")
 

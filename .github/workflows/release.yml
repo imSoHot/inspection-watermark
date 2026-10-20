@@ -1,0 +1,110 @@
+name: Release
+
+# 触发方式：
+#   1. 推送 v* 标签（如 v1.0.0）→ 自动构建并发布 Release
+#   2. 手动触发 workflow_dispatch → 只构建，产物存为 Actions artifact，不发布
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.8"
+  PILLOW_VERSION: "10.4.0"
+  PYINSTALLER_VERSION: "5.13.2"
+
+jobs:
+  build:
+    name: 构建 32 位 exe
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 32 位 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: "x86"
+
+      - name: 安装依赖
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "Pillow==$env:PILLOW_VERSION" "pyinstaller==$env:PYINSTALLER_VERSION"
+
+      - name: 校验 32 位环境
+        shell: pwsh
+        run: |
+          python -c "import struct, sys; print('Python', sys.version); assert struct.calcsize('P') == 4, '不是 32 位解释器'"
+
+      - name: 运行回归测试
+        shell: pwsh
+        working-directory: .
+        run: |
+          foreach ($t in @("test_v3.py", "test_wrap.py", "test_align.py", "test_daytime.py")) {
+            Write-Host "=== $t ==="
+            python $t
+            if ($LASTEXITCODE -ne 0) { throw "$t 失败" }
+          }
+
+      - name: PyInstaller 打包
+        shell: pwsh
+        working-directory: pack_build
+        run: |
+          pyinstaller --noconfirm --clean `
+            --distpath gui_dist32 `
+            --workpath build_tmp `
+            spec/巡检加水印.spec
+
+      - name: 校验产物为 32 位 PE
+        shell: pwsh
+        run: |
+          $exe = "pack_build/gui_dist32/巡检加水印.exe"
+          if (-not (Test-Path $exe)) { throw "未找到打包产物 $exe" }
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          Write-Host ("machine = 0x{0:X}" -f $machine)
+          if ($machine -ne 0x14c) { throw "产物不是 32 位 PE（machine=0x$($machine.ToString('X')))" }
+          Write-Host ("大小: {0:N2} MB" -f ((Get-Item $exe).Length / 1MB))
+
+      - name: 组装交付目录
+        shell: pwsh
+        run: |
+          $dist = "pack_build/安装包/巡检照片加水印工具"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          if (-not (Test-Path "$dist/使用说明.txt")) { throw "缺少 pack_build/安装包/巡检照片加水印工具/使用说明.txt" }
+          Copy-Item "pack_build/gui_dist32/巡检加水印.exe" "$dist/巡检加水印.exe" -Force
+          Get-ChildItem $dist | Format-Table Name, Length
+
+      - name: 生成安装包 zip
+        shell: pwsh
+        working-directory: pack_build
+        run: python make_zip.py
+
+      - name: 上传构建产物（手动触发时可用）
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspection-watermark-win32
+          path: pack_build/巡检照片加水印工具_安装包.zip
+          retention-days: 30
+
+      - name: 发布 Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ### 使用说明
+            - 系统要求：**32 位 / 64 位 Windows**（无需安装 Python）
+            - 下载下方 `巡检照片加水印工具_安装包.zip`，解压后双击 `巡检加水印.exe` 运行
+            - 详细操作见包内 `使用说明.txt`
+          files: |
+            pack_build/巡检照片加水印工具_安装包.zip

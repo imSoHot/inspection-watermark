@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 验证：超过 10 个字自动换行，水印高度随行数增长
+import os
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
@@ -68,6 +69,7 @@ for im, cap in [(short, "10字以内：单行"), (long_, "超过10字：自动�
 sheet = Image.new("RGB", (tw * 2 + 36, max(t.size[1] for t in tiles) + 24), (244, 246, 250))
 sheet.paste(tiles[0], (12, 12))
 sheet.paste(tiles[1], (tw + 24, 12))
+os.makedirs("pack_build/style_preview", exist_ok=True)
 sheet.save("pack_build/style_preview/自动换行对照图.jpg", quality=93)
 print("对照图: pack_build/style_preview/自动换行对照图.jpg")
 

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 验证：两行信息的值列统一对齐（最宽标签之后）
+import os
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
@@ -60,6 +61,7 @@ th = int(out.height * tw / out.width)
 small = out.resize((tw, th), Image.LANCZOS)
 sheet = Image.new("RGB", (tw + 24, th + 24), (244, 246, 250))
 sheet.paste(small, (12, 12))
+os.makedirs("pack_build/style_preview", exist_ok=True)
 sheet.save("pack_build/style_preview/值列对齐验证图.jpg", quality=93)
 print("对照图: pack_build/style_preview/值列对齐验证图.jpg")
 

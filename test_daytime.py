@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # 验证：时间严格限制在每天 8:30~18:00；备注标签自定义；宽度默认 40%
 import inspect
+import os
 from datetime import datetime
 
 from watermarker import (generate_times, usable_minutes, daytime_segments,
@@ -63,6 +64,7 @@ ImageDraw.Draw(img).rectangle([200, 300, 900, 700], fill=(90, 110, 130))
 out = draw_watermark(img, datetime(2026, 5, 12, 17, 58), "阳塘安居小区隆兴六里",
                      "维保单位：银江智慧", "左下", 75, remark_label="巡检人")
 check("自定义标签渲染不报错", out.size == (1200, 900))
+os.makedirs("pack_build/style_preview", exist_ok=True)
 out.save("pack_build/style_preview/自定义标签预览.jpg", quality=92)
 print("   预览已保存: pack_build/style_preview/自定义标签预览.jpg")
 
