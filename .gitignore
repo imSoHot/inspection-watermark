@@ -1,0 +1,65 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+env/
+ENV/
+
+# ---- 构建产物（体积大，不入库）----
+pack_build/build_tmp/
+pack_build/work/
+pack_build/dist/
+pack_build/gui_dist/
+pack_build/gui_dist2/
+pack_build/gui_dist32/
+pack_build/test32/
+pack_build/test_out3/
+pack_build/安装包/
+pack_build/*.zip
+
+# 历史版本中的二进制包
+历史版本/**/*.exe
+历史版本/**/*.zip
+历史版本/*/*
+
+# ---- 输出与预览图 ----
+demo_out/
+pack_build/pos_preview/
+pack_build/size_preview/
+pack_build/style_preview/
+pack_build/gui_test_src/
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+
+# ---- 运行时配置（含本机路径/单位信息）----
+界面设置.json
+config.json
+*.log
+
+# ---- 工具 / 编辑器 ----
+.workbuddy/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
