@@ -13,7 +13,10 @@ permissions:
   contents: write
 
 env:
-  PYTHON_VERSION: "3.8"
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  # 与本地打包环境严格对齐：3.8.10 是 Windows 上最后一个 32 位 3.8 补丁版
+  PYTHON_VERSION: "3.8.10"
   PILLOW_VERSION: "10.4.0"
   PYINSTALLER_VERSION: "5.13.2"
 
@@ -26,21 +29,31 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 安装 32 位 Python
+        id: pysetup
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: "x86"
+
+      - name: 诊断 Python 环境
+        shell: pwsh
+        run: |
+          Write-Host "== which python =="
+          Get-Command python -All | Select-Object -First 3 | ForEach-Object { $_.Source }
+          python --version
+          $bits = python -c "import struct; print(struct.calcsize('P') * 8)"
+          Write-Host "interpreter bits = $bits"
+          if ($bits -ne "32") { throw "[诊断] expected 32-bit interpreter, got $bits-bit" }
+          python -m pip --version
 
       - name: 安装依赖
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install "Pillow==$env:PILLOW_VERSION" "pyinstaller==$env:PYINSTALLER_VERSION"
-
-      - name: 校验 32 位环境
-        shell: pwsh
-        run: |
-          python -c "import struct, sys; print('Python', sys.version); assert struct.calcsize('P') == 4, '不是 32 位解释器'"
+          if ($LASTEXITCODE -ne 0) { throw "[安装依赖] pip install failed" }
+          python -m PyInstaller --version
+          if ($LASTEXITCODE -ne 0) { throw "[安装依赖] PyInstaller module not importable" }
 
       - name: 准备中文字体
         shell: pwsh
@@ -84,10 +97,15 @@ jobs:
         shell: pwsh
         working-directory: pack_build
         run: |
-          pyinstaller --noconfirm --clean `
+          # 用 python -m PyInstaller，避免 Scripts 目录未进 PATH 导致命令找不到
+          python -m PyInstaller --noconfirm --clean `
             --distpath gui_dist32 `
             --workpath build_tmp `
-            spec/巡检加水印.spec
+            "spec/巡检加水印.spec"
+          if (-not (Test-Path "gui_dist32/巡检加水印.exe")) {
+            Get-ChildItem -Recurse -Filter "*.exe" | Select-Object FullName
+            throw "打包未产出 exe"
+          }
 
       - name: 校验产物为 32 位 PE
         shell: pwsh
