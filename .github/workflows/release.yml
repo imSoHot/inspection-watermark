@@ -42,35 +42,43 @@ jobs:
         run: |
           python -c "import struct, sys; print('Python', sys.version); assert struct.calcsize('P') == 4, '不是 32 位解释器'"
 
-      - name: 安装中文字体
+      - name: 准备中文字体
         shell: pwsh
+        continue-on-error: true
         run: |
-          # windows-latest 为 Server 版，缺微软雅黑；水印排版依赖中文正文字体
-          $fonts = @(
-            @{ Name = "msyh.ttc";   Url = "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTC/NotoSansCJK-Regular.ttc" },
-            @{ Name = "msyhbd.ttc"; Url = "https://github.com/notofonts/noto-cjk/raw/main/Sans/OTC/NotoSansCJK-Bold.ttc" }
-          )
-          $dest = "C:\Windows\Fonts"
-          foreach ($f in $fonts) {
-            $target = Join-Path $dest $f.Name
+          # windows-latest 为 Server 版，缺微软雅黑；此处尝试安装到系统字体目录。
+          # 失败不影响构建：watermarker 已内置候选字体探测 + load_default 兜底。
+          New-Item -ItemType Directory -Force -Path "C:\Windows\Fonts" | Out-Null
+          $map = [ordered]@{
+            "msyh.ttc"   = "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTC/NotoSansCJK-Regular.ttc"
+            "msyhbd.ttc" = "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTC/NotoSansCJK-Bold.ttc"
+          }
+          foreach ($name in $map.Keys) {
+            $dst = Join-Path "C:\Windows\Fonts" $name
             try {
-              Invoke-WebRequest -Uri $f.Url -OutFile $target -MaximumRedirection 5 -TimeoutSec 120
-              Write-Host "已安装 $($f.Name)"
+              Invoke-WebRequest -Uri $map[$name] -OutFile $dst -TimeoutSec 180 -ErrorAction Stop
+              Write-Host "OK  $name ($((Get-Item $dst).Length / 1MB -as [int]) MB)"
             } catch {
-              Write-Warning "字体 $($f.Name) 下载失败：$($_.Exception.Message)（将继续，draw_watermark 会退化为默认字体）"
+              Write-Warning "字体 $name 安装失败：$($_.Exception.Message)"
             }
           }
-          Get-ChildItem $dest -Filter "msyh*" | Format-Table Name, Length
+          Write-Host "--- C:\Windows\Fonts 中的 msyh* ---"
+          Get-ChildItem "C:\Windows\Fonts" -Filter "msyh*" -ErrorAction SilentlyContinue | Select-Object Name, Length | Format-Table
 
       - name: 运行回归测试
         shell: pwsh
-        working-directory: .
         run: |
+          Write-Host "可用中文字体：" -NoNewline
+          $f = Get-ChildItem "C:\Windows\Fonts" -Filter "msyh*" -ErrorAction SilentlyContinue
+          if ($f) { Write-Host ($f.Name -join ", ") } else { Write-Host "无（将使用兜底字体，仅影响预览字形）" }
+          $failed = @()
           foreach ($t in @("test_v3.py", "test_wrap.py", "test_align.py", "test_daytime.py")) {
-            Write-Host "=== $t ==="
+            Write-Host "`n=== $t ==="
             python $t
-            if ($LASTEXITCODE -ne 0) { throw "$t 失败" }
+            if ($LASTEXITCODE -ne 0) { $failed += $t }
           }
+          if ($failed.Count -gt 0) { throw "失败用例: $($failed -join ', ')" }
+          Write-Host "`n全部回归测试通过"
 
       - name: PyInstaller 打包
         shell: pwsh
