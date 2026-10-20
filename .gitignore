@@ -32,8 +32,11 @@ pack_build/gui_dist2/
 pack_build/gui_dist32/
 pack_build/test32/
 pack_build/test_out3/
-pack_build/安装包/
 pack_build/*.zip
+
+# 交付目录：说明文档入库，exe 二进制不入库
+pack_build/安装包/**/*.exe
+pack_build/安装包/**/*.zip
 
 # 历史版本中的二进制包
 历史版本/**/*.exe
