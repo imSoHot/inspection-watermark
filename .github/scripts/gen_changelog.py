@@ -43,6 +43,11 @@ OTHER = ("其他改动", 99)
 SUBJECT_RE = re.compile(r"^(?P<type>[a-zA-Z]+)(?:\((?P<scope>[^)]*)\))?(?P<breaking>!)?:\s*(?P<desc>.+)$")
 
 
+# 仅当 body 中以 `BREAKING CHANGE:` / `BREAKING-CHANGE:` 开头（可带前导空格）才算破坏性变更，
+# 避免正文里只是"提到"该词就被误判
+BREAKING_RE = re.compile(r"^\s*BREAKING[- ]CHANGE\s*:", re.IGNORECASE | re.MULTILINE)
+
+
 def git(*args):
     r = subprocess.run(["git"] + list(args), capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
@@ -93,7 +98,7 @@ def collect(rng):
         sha, subject = parts[0].strip(), parts[1].strip()
         body = parts[2] if len(parts) > 2 else ""
         typ, cat, weight, breaking, text = parse_commit(sha, subject)
-        is_breaking = breaking or "BREAKING CHANGE" in body.upper()
+        is_breaking = breaking or bool(BREAKING_RE.search(body))
         items.append({
             "sha": sha, "cat": cat, "weight": weight,
             "text": text, "breaking": is_breaking,
@@ -123,8 +128,12 @@ def build_markdown(items, tag, repo):
             lines.append("")
 
         for cat, its in order:
+            # 已在上方「破坏性变更」列出的条目不再重复展示
+            rest = [i for i in its if not i["breaking"]]
+            if not rest:
+                continue
             lines.append(f"### {cat}\n")
-            for i in its:
+            for i in rest:
                 lines.append(f"- {i['text']} (`{i['sha']}`)")
             lines.append("")
 
