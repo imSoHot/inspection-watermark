@@ -27,6 +27,10 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          # changelog 需要完整提交历史与全部标签，浅克隆会导致区间为空
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: 安装 32 位 Python
         id: pysetup
@@ -145,17 +149,34 @@ jobs:
           path: pack_build/inspection-watermark-win32.zip
           retention-days: 30
 
+      - name: 生成中文 changelog
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          # 取当前标签之外、创建时间最近的一个标签作为对比基线
+          $all = git tag --sort=-creatordate
+          $prev = ($all | Where-Object { $_ -ne "${{ github.ref_name }}" }) | Select-Object -First 1
+          if ($prev) {
+            Write-Host "对比基线: $prev -> ${{ github.ref_name }}"
+            $env:PREV_TAG = $prev
+          } else {
+            Write-Host "无历史标签，首次发布将汇总全部提交"
+            $env:PREV_TAG = ""
+          }
+          $env:NEW_TAG = "${{ github.ref_name }}"
+          $env:GITHUB_REPOSITORY = "${{ github.repository }}"
+          python .github/scripts/gen_changelog.py --out CHANGELOG_BODY.md
+          if ($LASTEXITCODE -ne 0) { throw "[changelog] 生成失败" }
+          if (-not (Test-Path CHANGELOG_BODY.md)) { throw "[changelog] 未产出 CHANGELOG_BODY.md" }
+          Write-Host "--- 生成的 changelog ---"
+          Get-Content CHANGELOG_BODY.md -Encoding UTF8
+
       - name: 发布 Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
-          body: |
-            ### 使用说明
-            - 系统要求：**32 位 / 64 位 Windows**（无需安装 Python）
-            - 下载下方 `inspection-watermark-win32.zip`，解压后双击 `巡检加水印.exe` 运行
-            - 详细操作见包内 `使用说明.txt`
+          body_path: CHANGELOG_BODY.md
           files: |
             pack_build/inspection-watermark-win32.zip
